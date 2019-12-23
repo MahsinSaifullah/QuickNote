@@ -24,6 +24,16 @@ import AppHeader from './header';
 import AppFooter from './footer';
 import Row from './row';
 
+const qs=require('querystring');
+const url = 'http://192.168.0.30:3000';
+const config = {
+  headers: {
+    'Content-Type': 'application/x-www-form-urlencoded'
+  }
+}
+
+
+
 const filterItems = (filter, items) => {
   return items.filter(item => {
     if (filter == 'ALL') return true;
@@ -50,37 +60,25 @@ class HomeScreen extends Component {
 
   componentDidMount() {
     axios
-      .get('http://192.168.0.30:3000/items')
-      .then(result => this.setState({items: result.data}));
+      .get(url + '/items')
+      .then(result => this.setState({
+        items: result.data, 
+        loading: false,
+        displayItems: result.data
+      }));
 
-    this.setState({
-      loading: false,
-      displayItems: this.state.items,
-    });
-
-    // this.getData();
     StatusBar.setHidden(true);
   }
 
-  // getData = async () => {
-  //   const newItems = await AsyncStorage.getItem('items');
-  //   const itemsParsed = JSON.parse(newItems);
-
-  //   this.setState({
-  //     loading: false,
-  //     items: itemsParsed,
-  //     displayItems: itemsParsed,
-  //   });
-  //   AsyncStorage.setItem('items', JSON.stringify(this.state.items));
-  // };
-
+// toggles the complete button for all the task
   handleOnPress = () => {
     const complete = !this.state.allComplete;
+    let data = {
+      complete: complete
+    };
     const newItems = this.state.items.map(item => {
       axios
-        .put('http://192.168.0.30:3000/items/${item.key}', {
-          complete: complete,
-        })
+        .put(url + '/items/' + item.key, qs.stringify(data), config)
         .then(res => {
           console.log(res);
           console.log(res.data);
@@ -90,20 +88,26 @@ class HomeScreen extends Component {
         complete,
       };
     });
-    // console.table(newItems);
+
+
     this.setState({
       items: newItems,
       allComplete: complete,
       displayItems: filterItems(this.state.filter, newItems),
     });
-    // AsyncStorage.setItem('items', JSON.stringify(newItems));
+  
   };
 
+
+//toggles the complete button of a particular task
   handleToggleComplete = (key, complete) => {
+    let data = {
+      complete: complete
+    };
     const newItems = this.state.items.map(item => {
       if (item.key !== key) return item;
       axios
-        .put('http://192.168.0.30:3000/items/${key}', {complete: complete})
+        .put(url +'/items/' + key, qs.stringify(data), config)
         .then(res => {
           console.log(res);
           console.log(res.data);
@@ -119,34 +123,31 @@ class HomeScreen extends Component {
       displayItems: filterItems(this.state.filter, newItems),
     });
 
-    // AsyncStorage.setItem('items', JSON.stringify(newItems));
   };
 
+  // adds item to the list
   handleAddItem = () => {
     if (!this.state.value) return;
 
-    axios
-      .post('http://192.168.0.30:3000/items', {
-        key: Date.now(),
-        text: this.state.value,
-        complete: false,
-      })
-      .then(
-        response => {
-          console.log(response);
-        },
-        error => {
-          console.log(error);
-        },
-      );
+    let data={
+      key: Date.now(),
+      text: this.state.value,
+      complete: false,
+    };
+
+    axios.post(url + '/items', qs.stringify(data), config)
+  .then((result) => {
+    console.log(result)
+  })
+  .catch((err) => {
+    console.log(err)
+  })
+
+
 
     const newItems = [
       ...this.state.items,
-      {
-        key: Date.now(),
-        text: this.state.value,
-        complete: false,
-      },
+      data,
     ];
 
     this.setState({
@@ -155,10 +156,16 @@ class HomeScreen extends Component {
       displayItems: filterItems(this.state.filter, newItems),
     });
 
-    // AsyncStorage.setItem('items', JSON.stringify(newItems));
   };
 
+  //removes item from the list
   handleRemoveItem = key => {
+
+    axios.delete(url + '/items/' + key).then(res => {
+      console.log(res);
+      console.log(res.data);
+    });
+
     const newItems = this.state.items.filter(item => item.key !== key);
 
     this.setState({
@@ -166,14 +173,10 @@ class HomeScreen extends Component {
       displayItems: newItems,
     });
 
-    axios.delete('http://192.168.0.30:3000/items/${key}').then(res => {
-      console.log(res);
-      console.log(res.data);
-    });
-
-    // AsyncStorage.setItem('items', JSON.stringify(newItems));
+   
   };
 
+  //filters item according to their filter state
   handleFilter = filter => {
     this.setState({
       displayItems: filterItems(filter, this.state.items),
@@ -181,11 +184,12 @@ class HomeScreen extends Component {
     });
   };
 
+  // clears only the completed task
   handleClear = () => {
     this.state.items.map(item => {
       if (item.complete) {
         axios
-          .delete('http://192.168.0.30:3000/items/${item.key}')
+          .delete(url + '/items/' + item.key)
           .then(res => {
             console.log(res);
             console.log(res.data);
@@ -198,7 +202,6 @@ class HomeScreen extends Component {
       displayItems: filterItems(this.state.filter, newItems),
     });
 
-    // AsyncStorage.setItem('items', JSON.stringify(newItems));
   };
 
   render() {
